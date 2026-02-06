@@ -47,6 +47,7 @@ function App() {
   const [newProjectName, setNewProjectName] = useState("");
   const newProjectRef = useRef<HTMLInputElement | null>(null);
   const [listAnimKey, setListAnimKey] = useState(0);
+  const [completedCollapsed, setCompletedCollapsed] = useState(false);
 
   const [projectMenuId, setProjectMenuId] = useState<string | null>(null);
   const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
@@ -94,11 +95,22 @@ function App() {
     return { open, done };
   }, [tasks]);
 
+  const taskCountByProject = useMemo(() => {
+    const counts = new Map<string, number>();
+    tasks.forEach((t) => {
+      if (t.projectId) {
+        counts.set(t.projectId, (counts.get(t.projectId) || 0) + 1);
+      }
+    });
+    return counts;
+  }, [tasks]);
+
   const visibleTasks = useMemo(() => {
-    if (active.type === "smart" && active.view === "completed") return tasks;
-    if (active.type === "project") return splitTasks.open;
+    if (active.type === "smart" && active.view === "completed") return splitTasks.done;
+    if (active.type === "smart" && active.view === "all") return tasks;
+    if (active.type === "project") return tasks;
     return splitTasks.open;
-  }, [active, splitTasks.open, tasks]);
+  }, [active, splitTasks.open, splitTasks.done, tasks]);
 
   const canReorder = useMemo(() => {
     return active.type === "project" && search.trim().length === 0 && tagFilter.length === 0;
@@ -200,21 +212,58 @@ function App() {
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
+      // Don't handle shortcuts if user is typing in an input
+      const target = e.target as HTMLElement;
+      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.tagName === "SELECT") {
+        return;
+      }
+
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "n") {
         e.preventDefault();
         composerRef.current?.focus();
+        return;
       }
       if (!e.ctrlKey && !e.metaKey && e.key === "/") {
         e.preventDefault();
         searchRef.current?.focus();
+        return;
       }
       if (e.key === "Escape") {
         setSelectedTaskId(null);
+        return;
+      }
+
+      // Task keyboard navigation
+      const allVisibleTasks = [...visibleTasks, ...(active.type === "project" ? splitTasks.done : [])];
+      if (allVisibleTasks.length === 0) return;
+
+      const currentIndex = selectedTaskId ? allVisibleTasks.findIndex((t) => t.id === selectedTaskId) : -1;
+
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        const nextIndex = currentIndex < allVisibleTasks.length - 1 ? currentIndex + 1 : 0;
+        setSelectedTaskId(allVisibleTasks[nextIndex]?.id ?? null);
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        const prevIndex = currentIndex > 0 ? currentIndex - 1 : allVisibleTasks.length - 1;
+        setSelectedTaskId(allVisibleTasks[prevIndex]?.id ?? null);
+      } else if (e.key === "Enter" && selectedTaskId) {
+        e.preventDefault();
+        const task = allVisibleTasks.find((t) => t.id === selectedTaskId);
+        if (task) {
+          onToggleTask(task).catch((err) => setError(String((err as any)?.message ?? err)));
+        }
+      } else if ((e.key === "Delete" || e.key === "Backspace") && selectedTaskId && !e.shiftKey) {
+        e.preventDefault();
+        const task = allVisibleTasks.find((t) => t.id === selectedTaskId);
+        if (task) {
+          onDeleteTask(task).catch((err) => setError(String((err as any)?.message ?? err)));
+        }
       }
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, []);
+  }, [selectedTaskId, visibleTasks, splitTasks.done, active.type]);
 
   async function onAddTask(): Promise<void> {
     const title = composer.trim();
@@ -371,6 +420,13 @@ function App() {
             <span className="railGlyph">✓</span>
             Completed
           </button>
+          <button
+            className={"railItem" + (active.type === "smart" && active.view === "all" ? " active" : "")}
+            onClick={() => setActive({ type: "smart", view: "all" })}
+          >
+            <span className="railGlyph">◈</span>
+            All
+          </button>
         </div>
 
         <div className="railSection">
@@ -447,7 +503,7 @@ function App() {
                         autoFocus
                       />
                     ) : (
-                      <span className="projName">{p.name}</span>
+                      <span className="projName">{p.name} <span className="projCount mono">{taskCountByProject.get(p.id) || 0}</span></span>
                     )}
                   </button>
 
@@ -507,7 +563,7 @@ function App() {
         <header className="topbar">
           <div className="topTitle">
             <h1>{viewTitle}</h1>
-            <div className="badge mono">{tasks.length}</div>
+            <div className="badge mono">{visibleTasks.length}</div>
           </div>
           <div className="topTools">
             <input
@@ -520,7 +576,7 @@ function App() {
           </div>
 
           <div className="chipRow" aria-label="Tag filters">
-            {tags.length === 0 ? <span className="chip faint mono">no tags yet</span> : null}
+            {tags.length === 0 ? <span className="chip faint mono">Add tags to tasks to filter by them</span> : null}
             {tags.map((t) => {
               const on = tagFilter.includes(t.id);
               return (
@@ -582,7 +638,7 @@ function App() {
             </div>
           ) : null}
 
-          {tasks.length === 0 ? (
+          {visibleTasks.length === 0 ? (
             <EmptyState
               mode={active.type === "project" ? "project" : active.view}
               title={viewTitle}
@@ -644,8 +700,15 @@ function App() {
 
             {active.type === "project" && splitTasks.done.length > 0 ? (
               <>
-                <div className="groupHeader mono">COMPLETED</div>
-                {splitTasks.done.map((t, idx) => (
+                <button 
+                  className="groupHeader mono collapseToggle"
+                  onClick={() => setCompletedCollapsed((v) => !v)}
+                  title={completedCollapsed ? "Show completed tasks" : "Hide completed tasks"}
+                >
+                  <span>{completedCollapsed ? "▶" : "▼"}</span>
+                  COMPLETED ({splitTasks.done.length})
+                </button>
+                {!completedCollapsed && splitTasks.done.map((t, idx) => (
                   <TaskRow
                     key={t.id}
                     task={t}
@@ -672,6 +735,7 @@ function App() {
           <Inspector
             task={selectedTask}
             projectName={projects.find((p) => p.id === selectedTask.projectId)?.name ?? ""}
+            projects={projects}
             tags={selectedTaskTags}
             onClose={() => setSelectedTaskId(null)}
             onChange={async (patch) => {
@@ -757,7 +821,7 @@ function TaskRow(props: {
         <div className={"taskTitle" + (props.task.completed ? " done" : "")}>{props.task.title}</div>
         <div className="taskMeta mono">
           {props.task.dueAt ? <span className={"pill" + (props.task.dueAt === todayIsoDate() ? " hot" : "")}>due {props.task.dueAt}</span> : <span className="pill faint">no due</span>}
-          <span className={"pill" + (p >= 2 ? " warn" : "")}>{pri}</span>
+          <span className={"pill priority" + (p === 3 ? " critical" : p === 2 ? " high" : p === 1 ? " medium" : " low")}>{pri}</span>
         </div>
       </div>
       <button
@@ -831,9 +895,10 @@ function EmptyState(props: {
 function Inspector(props: {
   task: Task;
   projectName: string;
+  projects: Project[];
   tags: Tag[];
   onClose: () => void;
-  onChange: (patch: Partial<Pick<Task, "title" | "notes" | "priority" | "dueAt">>) => Promise<void>;
+  onChange: (patch: Partial<Pick<Task, "title" | "notes" | "priority" | "dueAt" | "projectId">>) => Promise<void>;
   onAddTag: (name: string) => Promise<void>;
   onRemoveTag: (tagId: string) => Promise<void>;
 }) {
@@ -841,6 +906,7 @@ function Inspector(props: {
   const [notes, setNotes] = useState(props.task.notes);
   const [dueAt, setDueAt] = useState(props.task.dueAt ?? "");
   const [priority, setPriority] = useState(String(props.task.priority ?? 0));
+  const [projectId, setProjectId] = useState(props.task.projectId ?? "");
   const [tagName, setTagName] = useState("");
 
   useEffect(() => {
@@ -848,6 +914,7 @@ function Inspector(props: {
     setNotes(props.task.notes);
     setDueAt(props.task.dueAt ?? "");
     setPriority(String(props.task.priority ?? 0));
+    setProjectId(props.task.projectId ?? "");
   }, [props.task]);
 
   return (
@@ -861,6 +928,22 @@ function Inspector(props: {
           ✕
         </button>
       </div>
+
+      <label className="field">
+        <div className="fieldLabel mono">PROJECT</div>
+        <select
+          className="fieldInput"
+          value={projectId}
+          onChange={(e) => setProjectId(e.currentTarget.value)}
+          onBlur={() => props.onChange({ projectId: projectId || null })}
+        >
+          {props.projects.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.name}
+            </option>
+          ))}
+        </select>
+      </label>
 
       <label className="field">
         <div className="fieldLabel mono">TITLE</div>
@@ -914,11 +997,19 @@ function Inspector(props: {
       <div className="field">
         <div className="fieldLabel mono">TAGS</div>
         <div className="tagRow">
-          {props.tags.length === 0 ? <span className="pill faint mono">none</span> : null}
+          {props.tags.length === 0 ? <span className="pill faint mono">Click tags to remove</span> : null}
           {props.tags.map((t) => (
-            <button key={t.id} className="tag" onClick={() => props.onRemoveTag(t.id)} title="Remove tag">
-              #{t.name} <span className="tagX">×</span>
-            </button>
+            <div key={t.id} className="tagItem">
+              <span className="tagName">#{t.name}</span>
+              <button 
+                className="tagRemove" 
+                onClick={() => props.onRemoveTag(t.id)} 
+                title={`Remove tag "${t.name}"`}
+                aria-label={`Remove tag ${t.name}`}
+              >
+                ✕
+              </button>
+            </div>
           ))}
         </div>
 
