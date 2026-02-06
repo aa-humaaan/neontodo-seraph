@@ -230,8 +230,9 @@
   position: relative;
   display: grid;
   grid-template-columns: 1fr auto;
-  gap: 8px;
+  gap: 4px;
   align-items: center;
+  margin: 2px 0;
 }
 
 .projRow.active .projMain {
@@ -285,22 +286,27 @@
 }
 
 .projMore {
-  border: 1px solid rgba(255, 255, 255, 0.10);
-  background: rgba(0, 0, 0, 0.12);
-  border-radius: 12px;
-  width: 36px;
-  height: 40px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.08);
+  border-radius: 10px;
+  width: 32px;
+  height: 32px;
   cursor: pointer;
-  color: rgba(245, 251, 255, 0.70);
-  opacity: 0.0;
-  transform: translateX(-4px);
-  transition: opacity 140ms var(--ease-out), transform 140ms var(--ease-out), border-color 140ms var(--ease-out);
+  color: rgba(245, 251, 255, 0.50);
+  opacity: 1;
+  transform: translateX(0);
+  transition: all 140ms var(--ease-out);
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .projRow:hover .projMore,
 .projMore.on {
-  opacity: 1;
-  transform: translateX(0);
+  border-color: rgba(41, 240, 255, 0.30);
+  background: rgba(41, 240, 255, 0.10);
+  color: rgba(245, 251, 255, 0.85);
 }
 
 .projMore:hover {
@@ -370,6 +376,7 @@
   gap: 10px;
   cursor: pointer;
   color: rgba(245, 251, 255, 0.86);
+  margin: 2px 0;
   text-align: left;
   transition: transform 140ms var(--ease-out), border-color 140ms var(--ease-out), background 140ms var(--ease-out);
 }
