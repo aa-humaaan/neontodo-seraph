@@ -269,6 +269,8 @@ export async function reorderTasks(projectId: string | null, orderedTaskIds: str
 export async function createTask(input: {
   title: string;
   projectId?: string | null;
+  dueAt?: string | null;
+  priority?: number;
 }): Promise<Task> {
   const db = await getDb();
   const id = crypto.randomUUID();
@@ -276,6 +278,8 @@ export async function createTask(input: {
   const updatedAt = createdAt;
   const title = input.title.trim();
   const projectId = input.projectId ?? null;
+  const dueAt = input.dueAt ?? null;
+  const priority = Number.isFinite(input.priority as number) ? Number(input.priority) : 0;
 
   const sortRow = await db.select<{ next: number }>(
     "SELECT COALESCE(MAX(sort_order), -1) + 1 AS next FROM tasks WHERE project_id IS $1",
@@ -285,7 +289,7 @@ export async function createTask(input: {
 
   await db.execute(
     "INSERT INTO tasks (id, project_id, title, notes, completed, priority, due_at, sort_order, created_at, updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)",
-    [id, projectId, title, "", 0, 0, null, sortOrder, createdAt, updatedAt],
+    [id, projectId, title, "", 0, priority, dueAt, sortOrder, createdAt, updatedAt],
   );
 
   return {
@@ -294,8 +298,8 @@ export async function createTask(input: {
     title,
     notes: "",
     completed: false,
-    priority: 0,
-    dueAt: null,
+    priority,
+    dueAt,
     sortOrder,
     createdAt,
     updatedAt,

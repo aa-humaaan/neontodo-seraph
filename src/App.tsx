@@ -20,7 +20,7 @@ import {
   toggleTaskCompleted,
   updateTask,
 } from "./data/repo";
-import { todayIsoDate } from "./lib/date";
+import { addDaysIsoDate, todayIsoDate } from "./lib/date";
 import { exportToJsonFile, importFromJsonFile } from "./data/backup";
 
 function App() {
@@ -115,6 +115,12 @@ function App() {
   const canReorder = useMemo(() => {
     return active.type === "project" && search.trim().length === 0 && tagFilter.length === 0;
   }, [active.type, search, tagFilter.length]);
+
+  const projectNameById = useMemo(() => {
+    const map = new Map<string, string>();
+    projects.forEach((p) => map.set(p.id, p.name));
+    return map;
+  }, [projects]);
 
   const isFiltered = useMemo(() => {
     return search.trim().length > 0 || tagFilter.length > 0;
@@ -272,9 +278,24 @@ function App() {
     const targetProjectId = active.type === "project" ? active.projectId : defaultProjectId;
     if (!targetProjectId) return;
 
+    // UX: tasks should appear in the view where you create them.
+    // - Today: auto-schedule for today.
+    // - Upcoming: auto-schedule for tomorrow.
+    // - Completed: create task then jump to All so user sees it.
+    let dueAt: string | null = null;
+    if (active.type === "smart") {
+      if (active.view === "today") dueAt = todayIsoDate();
+      if (active.view === "upcoming") dueAt = addDaysIsoDate(1);
+    }
+
     setComposer("");
-    const t = await createTask({ title, projectId: targetProjectId });
+    const t = await createTask({ title, projectId: targetProjectId, dueAt });
     setSelectedTaskId(t.id);
+
+    if (active.type === "smart" && active.view === "completed") {
+      setActive({ type: "smart", view: "all" });
+      setNotice("Created task in All (open tasks) ");
+    }
     await refresh();
   }
 
@@ -398,35 +419,37 @@ function App() {
 
         <div className="railSection">
           <div className="railHeader">Views</div>
-          <button
-            className={"railItem" + (active.type === "smart" && active.view === "today" ? " active" : "")}
-            onClick={() => setActive({ type: "smart", view: "today" })}
-          >
-            <span className="railGlyph">◎</span>
-            Today
-            <span className="railHint mono">{todayIsoDate()}</span>
-          </button>
-          <button
-            className={"railItem" + (active.type === "smart" && active.view === "upcoming" ? " active" : "")}
-            onClick={() => setActive({ type: "smart", view: "upcoming" })}
-          >
-            <span className="railGlyph">⇢</span>
-            Upcoming
-          </button>
-          <button
-            className={"railItem" + (active.type === "smart" && active.view === "completed" ? " active" : "")}
-            onClick={() => setActive({ type: "smart", view: "completed" })}
-          >
-            <span className="railGlyph">✓</span>
-            Completed
-          </button>
-          <button
-            className={"railItem" + (active.type === "smart" && active.view === "all" ? " active" : "")}
-            onClick={() => setActive({ type: "smart", view: "all" })}
-          >
-            <span className="railGlyph">◈</span>
-            All
-          </button>
+          <div className="railNav">
+            <button
+              className={"railItem" + (active.type === "smart" && active.view === "today" ? " active" : "")}
+              onClick={() => setActive({ type: "smart", view: "today" })}
+            >
+              <span className="railGlyph">◎</span>
+              Today
+              <span className="railHint mono">{todayIsoDate()}</span>
+            </button>
+            <button
+              className={"railItem" + (active.type === "smart" && active.view === "upcoming" ? " active" : "")}
+              onClick={() => setActive({ type: "smart", view: "upcoming" })}
+            >
+              <span className="railGlyph">⇢</span>
+              Upcoming
+            </button>
+            <button
+              className={"railItem" + (active.type === "smart" && active.view === "all" ? " active" : "")}
+              onClick={() => setActive({ type: "smart", view: "all" })}
+            >
+              <span className="railGlyph">◈</span>
+              All
+            </button>
+            <button
+              className={"railItem" + (active.type === "smart" && active.view === "completed" ? " active" : "")}
+              onClick={() => setActive({ type: "smart", view: "completed" })}
+            >
+              <span className="railGlyph">✓</span>
+              Completed
+            </button>
+          </div>
         </div>
 
         <div className="railSection">
@@ -609,7 +632,17 @@ function App() {
             onKeyDown={(e) => {
               if (e.key === "Enter") onAddTask().catch((err) => setError(String((err as any)?.message ?? err)));
             }}
-            placeholder={active.type === "project" ? `Add a task to ${viewTitle}...` : "Add a task to Inbox..."}
+            placeholder={
+              active.type === "project"
+                ? `Add a task to ${viewTitle}...`
+                : active.view === "today"
+                  ? "Add a task for Today (auto-scheduled)..."
+                  : active.view === "upcoming"
+                    ? "Add a task for Upcoming (tomorrow)..."
+                    : active.view === "completed"
+                      ? "Add a new task (will open All)..."
+                      : "Add a task to Inbox..."
+            }
           />
           <button
             className="primary"
@@ -661,6 +694,8 @@ function App() {
                 task={t}
                 selected={t.id === selectedTaskId}
                 index={idx}
+                projectName={t.projectId ? projectNameById.get(t.projectId) ?? "" : ""}
+                showProject={active.type === "smart"}
                 onSelect={() => setSelectedTaskId(t.id)}
                 onToggle={() => onToggleTask(t).catch((err) => setError(String((err as any)?.message ?? err)))}
                 onDelete={() => onDeleteTask(t).catch((err) => setError(String((err as any)?.message ?? err)))}
@@ -714,6 +749,8 @@ function App() {
                     task={t}
                     selected={t.id === selectedTaskId}
                     index={visibleTasks.length + idx}
+                    projectName={t.projectId ? projectNameById.get(t.projectId) ?? "" : ""}
+                    showProject={false}
                     onSelect={() => setSelectedTaskId(t.id)}
                     onToggle={() => onToggleTask(t).catch((err) => setError(String((err as any)?.message ?? err)))}
                     onDelete={() => onDeleteTask(t).catch((err) => setError(String((err as any)?.message ?? err)))}
@@ -762,6 +799,8 @@ function TaskRow(props: {
   task: Task;
   selected: boolean;
   index: number;
+  projectName?: string;
+  showProject?: boolean;
   onSelect: () => void;
   onToggle: () => void;
   onDelete: () => void;
@@ -821,6 +860,7 @@ function TaskRow(props: {
         <div className={"taskTitle" + (props.task.completed ? " done" : "")}>{props.task.title}</div>
         <div className="taskMeta mono">
           {props.task.dueAt ? <span className={"pill" + (props.task.dueAt === todayIsoDate() ? " hot" : "")}>due {props.task.dueAt}</span> : <span className="pill faint">no due</span>}
+          {props.showProject && props.projectName ? <span className="pill project">{props.projectName}</span> : null}
           <span className={"pill priority" + (p === 3 ? " critical" : p === 2 ? " high" : p === 1 ? " medium" : " low")}>{pri}</span>
         </div>
       </div>
