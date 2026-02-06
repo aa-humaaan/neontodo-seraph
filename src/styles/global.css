@@ -1,0 +1,99 @@
+@import "./tokens.css";
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  color: var(--text);
+  font-family: var(--font-ui);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background: radial-gradient(900px 600px at 18% 15%, rgba(41, 240, 255, 0.12), transparent 60%),
+    radial-gradient(900px 600px at 80% 10%, rgba(92, 255, 178, 0.09), transparent 65%),
+    radial-gradient(900px 600px at 62% 75%, rgba(128, 148, 255, 0.06), transparent 60%),
+    linear-gradient(180deg, var(--bg0), var(--bg1));
+  overflow: hidden;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.02) 0px,
+    rgba(255, 255, 255, 0.02) 1px,
+    transparent 1px,
+    transparent 4px
+  );
+  opacity: 0.22;
+  mix-blend-mode: overlay;
+  animation: scan 9s linear infinite;
+}
+
+body::after {
+  content: "";
+  position: fixed;
+  inset: -30px;
+  pointer-events: none;
+  background-image:
+    radial-gradient(circle at 20% 20%, rgba(41, 240, 255, 0.10), transparent 45%),
+    radial-gradient(circle at 85% 30%, rgba(92, 255, 178, 0.08), transparent 40%),
+    radial-gradient(circle at 60% 85%, rgba(255, 59, 108, 0.06), transparent 45%);
+  filter: blur(28px);
+  opacity: 0.65;
+  animation: drift 14s ease-in-out infinite alternate;
+}
+
+@keyframes drift {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  100% {
+    transform: translate3d(-22px, 16px, 0) scale(1.03);
+  }
+}
+
+@keyframes scan {
+  0% {
+    transform: translateY(0);
+  }
+  100% {
+    transform: translateY(-28px);
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+a {
+  color: inherit;
+}
+
+.mono {
+  font-family: var(--font-mono);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
