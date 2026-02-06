@@ -219,8 +219,9 @@
 }
 
 .railList {
-  display: grid;
-  gap: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
   max-height: 44vh;
   overflow: auto;
   padding-right: 4px;
@@ -232,7 +233,8 @@
   grid-template-columns: 1fr auto;
   gap: 4px;
   align-items: center;
-  margin: 2px 0;
+  padding: 0;
+  margin: 0;
 }
 
 .projRow.active .projMain {
@@ -243,12 +245,12 @@
 .projMain {
   border: 1px solid rgba(255, 255, 255, 0.0);
   background: rgba(0, 0, 0, 0.10);
-  border-radius: 12px;
-  padding: 10px 10px;
+  border-radius: 10px;
+  padding: 8px 12px;
   display: grid;
   grid-template-columns: 20px 1fr;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   cursor: pointer;
   color: rgba(245, 251, 255, 0.86);
   text-align: left;
@@ -286,31 +288,33 @@
 }
 
 .projMore {
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(0, 0, 0, 0.08);
-  border-radius: 10px;
-  width: 32px;
-  height: 32px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  width: 28px;
+  height: 28px;
   cursor: pointer;
-  color: rgba(245, 251, 255, 0.50);
+  color: rgba(245, 251, 255, 0.60);
   opacity: 1;
   transform: translateX(0);
   transition: all 140ms var(--ease-out);
-  font-size: 14px;
+  font-size: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 
 .projRow:hover .projMore,
 .projMore.on {
-  border-color: rgba(41, 240, 255, 0.30);
-  background: rgba(41, 240, 255, 0.10);
-  color: rgba(245, 251, 255, 0.85);
+  border-color: rgba(41, 240, 255, 0.50);
+  background: rgba(41, 240, 255, 0.15);
+  color: rgba(245, 251, 255, 0.95);
 }
 
 .projMore:hover {
-  border-color: rgba(41, 240, 255, 0.22);
+  border-color: rgba(41, 240, 255, 0.60);
+  background: rgba(41, 240, 255, 0.20);
 }
 
 .projMenu {
@@ -368,15 +372,15 @@
 .railItem {
   border: 1px solid rgba(255, 255, 255, 0.0);
   background: rgba(0, 0, 0, 0.10);
-  border-radius: 12px;
-  padding: 10px 10px;
+  border-radius: 10px;
+  padding: 8px 12px;
   display: grid;
   grid-template-columns: 20px 1fr auto;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   cursor: pointer;
   color: rgba(245, 251, 255, 0.86);
-  margin: 2px 0;
+  margin: 0;
   text-align: left;
   transition: transform 140ms var(--ease-out), border-color 140ms var(--ease-out), background 140ms var(--ease-out);
 }
